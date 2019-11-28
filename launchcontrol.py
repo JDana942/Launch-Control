@@ -12,7 +12,7 @@ DT = 20
 CLK = 21
 IGN = 4
 
-def access():
+def access(): # User Login to access the launch control system
   atp = 3
   while(atp > 0):
     if(atp == 1):
@@ -31,7 +31,7 @@ def access():
   print("Access denied system LOCKED")
   lockout()
 
-def terminal():
+def terminal(): # Main menu of the Launch Control System
   print("Accessing Control Terminal...")
   time.sleep(2)
   #bool = True
@@ -49,10 +49,10 @@ def terminal():
     else:
       print("Good job bud we are so proud of you!\n But try again...")
 
-def preLaunch():
+def preLaunch(): # Checks the launch critical elements prior to ignition
   print("Pre-launch system is under development")
 
-def launch():
+def launch(): # Activates the ignitor for launch
   preLaunch()
   usr_L= str(input("Enter Launch Code for ignition\n"))
   if (usr_L == "Buster"):
@@ -72,11 +72,11 @@ def launch():
     print("Incorrect Launch Code")
   # Include additional post ingnition check and options for re-ignition
 
-def lockout():
-  time.sleep(20)
+def lockout(): # Locks the console for 5 minutes if an incorrect user code is entered more than the allowed attempts 
+  time.sleep(300)
   os._exit(1)
 
-def _read():
+def _read(): # Reads from the HX711 module
   i=0
   Count=0
   GPIO.setup(CLK, GPIO.OUT)
@@ -97,19 +97,21 @@ def _read():
   signal.signal(signal.SIGINT, s)
   return Count
 
-def _cal():
+def _cal(): # Calibrates the scale and sets the reading to zero
   s = signal.signal(signal.SIGINT, signal.SIG_IGN)
-  CAL = []
-  CAL_2 = []
+  zero_1 = []
+  zero_2 = []
   for i in range (3):
-    CAL.append(_read())
-    cal_f1 = mean(CAL)
+    zero_1.append(_read())
+    zero_f1 = mean(zero_1)
   for i in range (3):
-    CAL_2.append(_read()-cal_f1)
-  cal_f2 = mean(CAL_2)
-  cal_factor = cal_f1 + cal_f2
+    zero_2.append(_read()-zero_f1)
+  zero_f2 = mean(zero_2)
+  zero_factor = zero_f1 + zero_f2
   signal.signal(signal.SIGINT, s)
-  _staticTest(cal_factor)
+  _staticTest(zero_factor)
+  # Note:: Edit cal_factor
+  cal_factor = zero_factor
 
 def _staticTest(cal_factor):
   #s = signal.signal(signal.SIGINT, signal.SIG_IGN)
