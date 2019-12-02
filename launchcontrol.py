@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
-from RPi import GPIO
+# Code Rev001
+from RPi import GPIO # For use in IDE
+#import RPi.GPIO as GPIO # For use in RPi
 import os
 import sys
 import time
@@ -12,7 +14,7 @@ DT = 20
 CLK = 21
 IGN = 4
 
-def access(): # User Login to access the launch control system
+def access():
   atp = 3
   while(atp > 0):
     if(atp == 1):
@@ -31,10 +33,9 @@ def access(): # User Login to access the launch control system
   print("Access denied system LOCKED")
   lockout()
 
-def terminal(): # Main menu of the Launch Control System
+def terminal():
   print("Accessing Control Terminal...")
-  time.sleep(2)
-  #bool = True
+  time.sleep(1)
   while (True):
     usr_t = str(input("Please select one of the following operations.\n  1. Logout\n  2. System Check\n  3. Initate Launch\n  4. Static motor test\n"))
     if (usr_t == "1"):
@@ -42,41 +43,48 @@ def terminal(): # Main menu of the Launch Control System
     elif (usr_t == "2"):
       preLaunch()
     elif (usr_t == "3"):
-      print("Launch confirmed.\nInitating pre-launch inspection.")
-      launch()
+      usr_L= str(input("Enter Ignition Key Buster for ignition\n"))
+      if (usr_L == "Buster"):
+        _launch()
+      else:
+        print("Incorrect Launch Key")
     elif (usr_t == "4"):
-      _cal()
+      usr_L= str(input("Enter Ignition Key Buster for ignition\n"))
+      if (usr_L == "Buster"):
+        _cal()
+      else:
+        print("Incorrect Launch Key")
     else:
       print("Good job bud we are so proud of you!\n But try again...")
 
-def preLaunch(): # Checks the launch critical elements prior to ignition
+def preLaunch():
   print("Pre-launch system is under development")
 
-def launch(): # Activates the ignitor for launch
+def _launch():
   preLaunch()
-  usr_L= str(input("Enter Launch Code for ignition\n"))
-  if (usr_L == "Buster"):
-    print("Launch sequence initated.\nLaunching in...\n")
-    Lcount = 10
-    for i in range(10):
-      print(Lcount)
-      time.sleep(1)
-      Lcount -= 1
-    print("Ignition")
-    GPIO.output(4, GPIO.HIGH)
-    time.sleep(3)
-    GPIO.output(4, GPIO.LOW)
-    #postIgnition()
-    terminal()
-  else:
-    print("Incorrect Launch Code")
+  print("Launch sequence initated.\nLaunching in...")
+  Lcount = 10
+  for i in range(10):
+    print(Lcount)
+    time.sleep(1)
+    Lcount -= 1
+  print("Ignition")
+  GPIO.setup(IGN, GPIO.OUT)
+  GPIO.output(IGN, 1)
+  time.sleep(3)
+  GPIO.output(IGN, 0)
+  #_postIgnition()
+  terminal()
   # Include additional post ingnition check and options for re-ignition
 
-def lockout(): # Locks the console for 5 minutes if an incorrect user code is entered more than the allowed attempts 
-  time.sleep(300)
+def _postIgnition():
+  print("Post Ignition under development")
+
+def lockout():
+  time.sleep(20)
   os._exit(1)
 
-def _read(): # Reads from the HX711 module
+def _read():
   i=0
   Count=0
   GPIO.setup(CLK, GPIO.OUT)
@@ -97,7 +105,7 @@ def _read(): # Reads from the HX711 module
   signal.signal(signal.SIGINT, s)
   return Count
 
-def _cal(): # Calibrates the scale and sets the reading to zero
+def _cal():
   s = signal.signal(signal.SIGINT, signal.SIG_IGN)
   zero_1 = []
   zero_2 = []
@@ -110,11 +118,10 @@ def _cal(): # Calibrates the scale and sets the reading to zero
   zero_factor = zero_f1 + zero_f2
   signal.signal(signal.SIGINT, s)
   _staticTest(zero_factor)
-  # Note:: Edit cal_factor
-  cal_factor = zero_factor
+  # scallingFactor = 
+  # Add Scalling Factor
 
-def _staticTest(cal_factor):
-  #s = signal.signal(signal.SIGINT, signal.SIG_IGN)
+def _staticTest(zero_factor):
   Force = ["Force", 0]
   Time = ["Time", 0]
   b = 0
@@ -127,24 +134,38 @@ def _staticTest(cal_factor):
   print("Ignition")
   GPIO.setup(IGN, GPIO.OUT)
   GPIO.output(IGN,1)
-  time.sleep(2)
-  GPIO.output(IGN,0)
-  print("Ready")
+  ignOn = time.time()
+  print("TMP Ready")
   while(True):
-    measure = round((_read()-cal_factor)/1000, 2)
+    measure = round((_read()-zero_factor)/1000, 2)
+    ignOff = time.time()
+    ignTimer = ignOff-ignOn
+    if (ignTimer > 3 and ignTimer < 3.01):
+      GPIO.output(IGN,0)
+    if (ignTimer > 10):
+      while(True):
+        usr_reign = str(input("Ignition Failed \nReattempt? Y or N\n"))
+        if (usr_reign == "Y"):
+          print("Re-attempting Ignition. DO NOT APPROCH MOTOR")
+          _staticTest(zero_factor)
+        elif (usr_reign == "N"):
+          print("Ignition Aborted")
+          terminal()
+        else:
+          print("Incorrect Response")
     if(measure > 5.0):
-      measure = round((_read()-cal_factor)/1000, 2)
+      measure = round((_read()-zero_factor)/1000, 2)
+      GPIO.output(IGN,0)
       if(measure > 5.0):
         print("Recording")
         starttime = time.time()
         while(True):
-          measure = round((_read()-cal_factor)/1000, 2)
+          measure = round((_read()-zero_factor)/1000, 2)
           print(measure)
           b += 1
           Force.append(measure)
           Time.append(b)
           if(measure < 5.0 and measure > -10.0):  # condition to break loop
-              #signal.signal(signal.SIGINT, s)
               endtime = time.time()
               filetime = time.strftime("%H:%M:%S")
               totaltime = str(endtime - starttime)
@@ -168,13 +189,14 @@ def _exit():
   os._exit(1)
 
 def main():
-  GPIO.setwarnings(False)
-  GPIO.setmode(GPIO.BCM)
-  GPIO.setup(17, GPIO.OUT)
-  GPIO.output(17, GPIO.LOW)
-  print("Accessing the Launch Control System...")
-  time.sleep(3)
-  access()
+  try:
+    GPIO.setwarnings(False)
+    GPIO.setmode(GPIO.BCM)
+    print("Accessing the Launch Control System...")
+    time.sleep(2)
+    access()
+  finally:
+    _exit()
 
 if __name__ == "__main__":
   main()
